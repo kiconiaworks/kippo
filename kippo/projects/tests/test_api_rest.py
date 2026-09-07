@@ -609,6 +609,14 @@ class KippoProjectViewSetTestCase(TestCase):
             created_by=self.user,
             updated_by=self.user,
         )
+        kit_project = KippoProject.objects.create(
+            name="KIT Project",
+            organization=self.organization,
+            columnset=self.project.columnset,
+            phase="keep-in-touch",
+            created_by=self.user,
+            updated_by=self.user,
+        )
 
         # Single phase.
         url = f"{settings.URL_PREFIX}/api/projects/?phase=verbal-order"
@@ -618,7 +626,7 @@ class KippoProjectViewSetTestCase(TestCase):
         self.assertEqual(result_ids, [str(verbal_order_project.id)])
 
         # Repeated phase params union the phases — this is the set the active-project admin
-        # changelist shows by default, so 口頭受注 is included and 提案(低) is not.
+        # changelist shows by default, so 口頭受注 and the 提案 phases are included and KIT is not.
         query = "&".join(f"phase={phase}" for phase in DEFAULT_ACTIVE_PROJECT_PHASES)
         url = f"{settings.URL_PREFIX}/api/projects/?{query}"
         response = self.client.get(url)
@@ -626,7 +634,8 @@ class KippoProjectViewSetTestCase(TestCase):
         result_ids = {result["id"] for result in response.json()["results"]}
         self.assertIn(str(self.project.id), result_ids)
         self.assertIn(str(verbal_order_project.id), result_ids)
-        self.assertNotIn(str(proposing_project.id), result_ids)
+        self.assertIn(str(proposing_project.id), result_ids)
+        self.assertNotIn(str(kit_project.id), result_ids)
 
     def test_filter_by_phase_empty_value_is_ignored(self):
         """`?phase=` (no value) is a no-op rather than a filter matching nothing."""

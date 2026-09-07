@@ -71,8 +71,10 @@ from .functions import (
 )
 from .models import (
     _COMPUTE,
+    ACTIVE_PROJECT_PHASE_RANK,
     PHASE_COMPLETED,
     PHASE_CONFIDENCE,
+    UNRANKED_PROJECT_PHASE_RANK,
     ActiveKippoProject,
     CollectIssuesAction,
     KippoMilestone,
@@ -2011,14 +2013,20 @@ class KippoProjectBaseAdmin(AllowIsStaffAdminMixin, nested_admin.NestedModelAdmi
             )
 
     def get_ordering(self, request: DjangoRequest):
-        # non-project category first, then confidence desc, target_date asc, name. A self-contained
-        # Case expression (not an annotation name) so order_by() resolves it on any queryset —
-        # ModelAdmin.get_queryset() applies get_ordering() on the raw manager qs (before any
-        # annotate()), and the ChangeList applies it again after get_queryset(). Defining it here
-        # (not via the `ordering` attribute) is what makes the changelist actually honor it.
-        # KippoProject.name is unique, so this is already a deterministic total ordering.
+        # non-project category first, then phase rank (ACTIVE_PROJECT_PHASE_GROUPS: the contracted
+        # block, 口頭受注, 提案 高 → 中 → 低, unranked phases last), then confidence desc,
+        # target_date asc, name. Self-contained Case expressions (not annotation names) so
+        # order_by() resolves them on any queryset — ModelAdmin.get_queryset() applies
+        # get_ordering() on the raw manager qs (before any annotate()), and the ChangeList applies
+        # it again after get_queryset(). Defining it here (not via the `ordering` attribute) is what
+        # makes the changelist actually honor it. KippoProject.name is unique, so this is already a
+        # deterministic total ordering.
         return [
             Case(When(category__key="non-project", then=Value(0)), default=Value(1)),
+            Case(
+                *[When(phase=phase, then=Value(rank)) for phase, rank in ACTIVE_PROJECT_PHASE_RANK.items()],
+                default=Value(UNRANKED_PROJECT_PHASE_RANK),
+            ),
             "-confidence",
             "target_date",
             "name",

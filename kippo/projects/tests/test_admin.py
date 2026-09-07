@@ -935,7 +935,7 @@ class CloseProjectActionTestCase(IsStaffModelAdminTestCaseBase):
     def test_intermediate_form_carries_originating_admin(self):
         """Started from プロジェクト(実行中), the confirmation form remembers that admin as the origin."""
         # the 実行中 changelist filters to the in-flight phases -- put the project where it is selectable
-        self.project1.phase = DEFAULT_ACTIVE_PROJECT_PHASES[0]
+        self.project1.phase = "verbal-order"
         self.project1.save()
         response = self.client.post(
             reverse("admin:projects_activekippoproject_changelist"),
@@ -1774,6 +1774,26 @@ class KippoProjectAdminActiveParityTestCase(KippoProjectAdminFixtureTestCaseBase
         self.assertEqual(response.status_code, HTTPStatus.OK)
         names = [p.name for p in response.context["cl"].result_list]
         self.assertLess(names.index(anon.name), names.index(real.name))
+
+    def test_changelist_orders_by_phase_rank_not_confidence(self):
+        """契約 → 口頭受注 → 提案(高) → 提案(中) → 提案(低), regardless of an overridden 確度.
+
+        confidence is user-editable, so ordering on it alone let a 提案 row stamped 99/100 jump
+        above 口頭受注 (kiconiaworks/kippo#56). Every row below carries the SAME confidence, so
+        only the phase rank can produce the expected order.
+        """
+        phases = ("proposing-low", "proposing-mid", "proposing-high", "verbal-order", "under-contract")
+        for index, phase in enumerate(phases):
+            # names ascend with the (reversed) phase order so the name tiebreak cannot fake the result
+            project = self.make_project(f"phase-order-{index}")
+            project.phase = phase
+            project.save()
+            KippoProject.objects.filter(pk=project.pk).update(confidence=99)
+
+        response = self.client.get(reverse("admin:projects_activekippoproject_changelist"))
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        ordered_phases = [p.phase for p in response.context["cl"].result_list if p.name.startswith("phase-order-")]
+        self.assertEqual(ordered_phases, list(reversed(phases)))
 
 
 class SalesKippoProjectAdminTestCase(KippoProjectAdminFixtureTestCaseBase):
@@ -3063,7 +3083,9 @@ class ActiveProjectPhaseFilterTestCase(IsStaffModelAdminTestCaseBase):
     def setUp(self):
         super().setUp()
         columnset = ProjectColumnSet.objects.get(pk=DEFAULT_COLUMNSET_PK)
-        self.all_phases = ("verbal-order", "under-contract", "proposing-low", "completed")
+        # every valid phase, so the default-selected set (DEFAULT_ACTIVE_PROJECT_PHASES) and the
+        # unselected remainder (KIT / 失注) are both represented by real rows
+        self.all_phases = tuple(phase for phase, _label in VALID_PROJECT_PHASES)
         # one active project per phase (display_as_active=True / is_closed=False by default => all active)
         for phase in self.all_phases:
             KippoProject.objects.create(

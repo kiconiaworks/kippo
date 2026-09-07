@@ -17,9 +17,12 @@ from projects.definitions import (
     VALID_KIPPOPROJECT_CATEGORY_VALUES,
 )
 from projects.models import (
+    ACTIVE_PROJECT_PHASE_RANK,
+    DEFAULT_ACTIVE_PROJECT_PHASES,
     DEFAULT_PROJECT_PHASE,
     PHASE_CONFIDENCE,
     PHASE_UNDER_CONTRACT,
+    UNRANKED_PROJECT_PHASE_RANK,
     VALID_PROJECT_PHASES,
     KippoMilestone,
     KippoProject,
@@ -862,6 +865,20 @@ class KippoProjectPhaseStatusTestCase(TestCase):
     def test_only_contract_and_completed_reach_full_confidence(self):
         full = {phase for phase, conf in PHASE_CONFIDENCE.items() if conf == FULL_CONFIDENCE_PERCENTAGE}
         self.assertEqual(full, {"under-contract", "completed"})
+
+    def test_active_phase_rank_orders_the_pipeline_high_to_low(self):
+        # 契約(稼働中)/完了 share the top rank, then 口頭受注, then 提案 高 → 中 → 低.
+        self.assertEqual(
+            ACTIVE_PROJECT_PHASE_RANK,
+            {"under-contract": 0, "completed": 0, "verbal-order": 1, "proposing-high": 2, "proposing-mid": 3, "proposing-low": 4},
+        )
+        self.assertEqual(UNRANKED_PROJECT_PHASE_RANK, 5)
+        # KIT / 失注 stay unranked (they sort last and are not pre-selected on the changelist)
+        unranked = set(dict(VALID_PROJECT_PHASES)) - set(ACTIVE_PROJECT_PHASE_RANK)
+        self.assertEqual(unranked, {"keep-in-touch", "lost"})
+
+    def test_default_active_phases_are_the_ranked_pipeline(self):
+        self.assertEqual(DEFAULT_ACTIVE_PROJECT_PHASES, tuple(ACTIVE_PROJECT_PHASE_RANK))
 
 
 class KippoProjectUnderContractPhaseGateTestCase(TestCase):

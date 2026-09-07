@@ -11,8 +11,9 @@ from .models import DEFAULT_ACTIVE_PROJECT_PHASES, VALID_PROJECT_PHASES
 class PhaseMultiSelectListFilter(MultiSelectListFilter):
     """Multi-select フェーズ filter for the active-project changelist.
 
-    With no `phase` query param the in-flight phases plus 完了 are pre-selected
-    (DEFAULT_ACTIVE_PROJECT_PHASES) — a 完了 row here is one that was never closed.
+    With no `phase` query param the in-flight pipeline is pre-selected
+    (DEFAULT_ACTIVE_PROJECT_PHASES): the contracted block, 口頭受注 and the 提案 phases —
+    a 完了 row here is one that was never closed. Only KIT / 失注 are left unselected.
     """
 
     title = _("フェーズ")

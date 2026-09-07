@@ -184,13 +184,27 @@ VALID_PROJECT_PHASES = (
     (PHASE_COMPLETED, _("完了")),
     ("lost", _("失注")),
 )
+# Changelist / プロジェクト状況 display order, top group first: the contracted block (契約(稼働中)
+# plus the unclosed 完了 rows) shares the top rank, then 口頭受注, then the 提案 phases 高 → 中 → 低.
+# Rank leads the ordering instead of 確度 because confidence is user-overridable, so a 提案(低) row
+# stamped 99 would otherwise outrank 口頭受注 (kiconiaworks/kippo#56). Phases left unranked
+# (KIT / 失注) sort after every ranked one.
+ACTIVE_PROJECT_PHASE_GROUPS = (
+    (PHASE_UNDER_CONTRACT, PHASE_COMPLETED),
+    ("verbal-order",),
+    ("proposing-high",),
+    ("proposing-mid",),
+    ("proposing-low",),
+)
+ACTIVE_PROJECT_PHASE_RANK = {phase: rank for rank, group in enumerate(ACTIVE_PROJECT_PHASE_GROUPS) for phase in group}
+UNRANKED_PROJECT_PHASE_RANK = len(ACTIVE_PROJECT_PHASE_GROUPS)
 # Phases pre-selected on the active-project admin changelist when the フェーズ filter has no query
-# param — the two in-flight phases plus 完了. See projects.filters.PhaseMultiSelectListFilter.
+# param — the ranked pipeline above. See projects.filters.PhaseMultiSelectListFilter.
 # 完了 is included deliberately: ActiveKippoProjectManager already drops closed projects
 # (is_closed=True / display_as_active=False), so the only 完了 rows this surfaces are the ones
 # stamped 完了 without being closed — the inconsistent state we want visible, and the state whose
 # row must stay selectable for the close action.
-DEFAULT_ACTIVE_PROJECT_PHASES = ("verbal-order", PHASE_UNDER_CONTRACT, PHASE_COMPLETED)
+DEFAULT_ACTIVE_PROJECT_PHASES = tuple(ACTIVE_PROJECT_PHASE_RANK)
 # Pre-contract sales-pipeline phases — everything before delivery (under-contract) and before a
 # terminal outcome (completed/lost). Consumed by SalesKippoProjectManager (プロジェクト(営業中)).
 SALES_PROJECT_PHASES = ("keep-in-touch", "proposing-low", "proposing-mid", "proposing-high", "verbal-order")
