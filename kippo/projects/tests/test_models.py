@@ -878,7 +878,13 @@ class KippoProjectPhaseStatusTestCase(TestCase):
         self.assertEqual(unranked, {"keep-in-touch", "lost"})
 
     def test_default_active_phases_are_the_ranked_pipeline(self):
-        self.assertEqual(DEFAULT_ACTIVE_PROJECT_PHASES, tuple(ACTIVE_PROJECT_PHASE_RANK))
+        # Pinned literally rather than compared against the rank table it is derived from: the
+        # changelist's default selection is a product decision, so a phase added to the rank table
+        # for ordering reasons must not become default-visible unnoticed.
+        self.assertEqual(
+            DEFAULT_ACTIVE_PROJECT_PHASES,
+            ("under-contract", "completed", "verbal-order", "proposing-high", "proposing-mid", "proposing-low"),
+        )
 
 
 class KippoProjectUnderContractPhaseGateTestCase(TestCase):

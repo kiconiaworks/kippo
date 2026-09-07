@@ -9,11 +9,15 @@ from .models import DEFAULT_ACTIVE_PROJECT_PHASES, VALID_PROJECT_PHASES
 
 
 class PhaseMultiSelectListFilter(MultiSelectListFilter):
-    """Multi-select フェーズ filter for the active-project changelist.
+    """Multi-select フェーズ filter, shared by the active-project (実行中) and sales (営業中) changelists.
 
     With no `phase` query param the in-flight pipeline is pre-selected
     (DEFAULT_ACTIVE_PROJECT_PHASES): the contracted block, 口頭受注 and the 提案 phases —
-    a 完了 row here is one that was never closed. Only KIT / 失注 are left unselected.
+    a 完了 row on 実行中 is one that was never closed.
+
+    The unselected remainder is KIT / 失注. On 営業中 that means KIT rows (which ARE in
+    SalesKippoProjectManager's queryset) need an explicit toggle to show — so editing
+    DEFAULT_ACTIVE_PROJECT_PHASES changes the default view of BOTH changelists.
     """
 
     title = _("フェーズ")
