@@ -85,9 +85,14 @@ def get_allholiday_weekstarts(
 def process_organizationinvites(backend: str, user: KippoUser, response: dict | object, *args, **kwargs):  # noqa: ARG001
     """Social-auth pipeline step: create OrganizationMemberships for the user's pending invites.
 
+    Only non-staff users are checked (no query for users who already have access): a staff user is
+    added to further organizations through the OrganizationMembership admin, not through invites.
+
     Raises `OrganizationInviteExpiredError` when the user belongs to no organization and every pending
     invite for their email has expired, so the login page can tell them why access was denied.
     """
+    if user.is_staff:
+        return
     if not getattr(user, "email", None):
         logger.error("User has no email address, cannot process organization invites.")
         return
@@ -107,7 +112,7 @@ def process_organizationinvites(backend: str, user: KippoUser, response: dict | 
         key=lambda invite: invite.expiration_date,
         reverse=True,
     )
-    if not expired_invites or user.is_superuser or OrganizationMembership.objects.filter(user=user).exists():
+    if not expired_invites or OrganizationMembership.objects.filter(user=user).exists():
         return
 
     latest_expired = expired_invites[0]

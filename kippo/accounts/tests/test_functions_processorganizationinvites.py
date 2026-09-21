@@ -95,10 +95,18 @@ class ProcessOrganizationInvitesTestCase(IsStaffModelAdminTestCaseBase):
         self.assertIn(latest.organization.name, str(context.exception))
         self.assertNotIn(self.other_organization.name, str(context.exception))
 
+    def test_process_for_organizationinvites__staff_user_skips_lookup(self):
+        """Staff users already have access: no invite query runs and an expired invite never blocks them"""
+        user_email = f"staff@{self.organization_domain}"
+        user = KippoUser.objects.create(username="staff_user", email=user_email, is_superuser=False, is_staff=True)
+        self._create_expired_invite(user_email)
+        with self.assertNumQueries(0):
+            process_organizationinvites(None, user, None, None, None)
+
     def test_process_for_organizationinvites__expired_ignored_for_existing_member(self):
-        """An expired invite must not block the login of a user who already belongs to an organization"""
+        """An expired invite must not block the login of a non-staff user who already belongs to an organization"""
         user_email = f"member@{self.organization_domain}"
-        user = KippoUser.objects.create(username="existing_member", email=user_email, is_superuser=False, is_staff=True)
+        user = KippoUser.objects.create(username="existing_member", email=user_email, is_superuser=False, is_staff=False)
         OrganizationMembership.objects.create(
             user=user,
             organization=self.organization,
@@ -149,31 +157,33 @@ class ProcessOrganizationInvitesTestCase(IsStaffModelAdminTestCaseBase):
         process_organizationinvites(None, user, None, None, None)
         self.assertEqual(OrganizationMembership.objects.filter(user=user, organization=self.organization).count(), 1)
 
-    def test_process_for_organizationinvites__expired_ignored_for_superuser(self):
-        user_email = f"root@{self.organization_domain}"
-        user = KippoUser.objects.create(username="root_user", email=user_email, is_superuser=True, is_staff=True)
-        self._create_expired_invite(user_email)
-        process_organizationinvites(None, user, None, None, None)  # must not raise
-
     def test_process_for_organizationinvites__valid_invite_for_existing_membership(self):
         """A valid invite to an organization the user already belongs to completes without a duplicate membership"""
-        user_email = f"member@{self.organization_domain}"
-        user = KippoUser.objects.create(username="existing_member", email=user_email, is_superuser=False, is_staff=True)
-        OrganizationMembership.objects.create(
-            user=user,
-            organization=self.organization,
+        # only an organization WITHOUT a staff domain leaves its members non-staff (subject to the invite check)
+        nostaff_organization = KippoOrganization.objects.create(
+            name="nostaff-organization",
+            github_organization_name="nostaff-testorg",
             created_by=self.github_manager,
             updated_by=self.github_manager,
         )
+        user_email = "member@nostaff-testorg.com"
+        user = KippoUser.objects.create(username="existing_member", email=user_email, is_superuser=False, is_staff=False)
+        OrganizationMembership.objects.create(
+            user=user,
+            organization=nostaff_organization,
+            created_by=self.github_manager,
+            updated_by=self.github_manager,
+        )
+        self.assertFalse(user.is_staff)
         invite = OrganizationInvite.objects.create(
             email=user_email,
-            organization=self.organization,
+            organization=nostaff_organization,
             created_by=self.github_manager,
             updated_by=self.github_manager,
         )
 
         process_organizationinvites(None, user, None, None, None)  # must not raise IntegrityError
-        self.assertEqual(OrganizationMembership.objects.filter(user=user, organization=self.organization).count(), 1)
+        self.assertEqual(OrganizationMembership.objects.filter(user=user, organization=nostaff_organization).count(), 1)
         invite.refresh_from_db()
         self.assertTrue(invite.is_complete)
 
