@@ -2439,12 +2439,14 @@ class KippoProjectAddFormLayoutTestCase(KippoProjectAdminFixtureTestCaseBase):
         self.assertIn(KippoProjectBillingEntryInline, KippoProjectContractAdmin.inlines)
         self.assertNotIn("collapse", KippoProjectBillingEntryInline.classes or ())
 
-    def test_change_view_renders_contract_and_billing_entry_sections_collapsible(self):
+    def test_change_view_renders_contract_billing_entry_and_rate_sections_collapsible(self):
+        from projects.models import ProjectAssignmentRate
+
         url = reverse("admin:projects_kippoproject_change", args=[self.existing_project.id])
         response = self.client.get(url)
         self.assertEqual(response.status_code, HTTPStatus.OK)
         content = response.content.decode()
-        for heading in ("契約", "請求エントリ"):
+        for heading in ("契約", "請求エントリ", str(ProjectAssignmentRate._meta.verbose_name_plural)):
             self.assertRegex(content, rf"<details><summary>\s*<h2>\s*{heading}")
 
     def test_billing_entry_inline_removed(self):
