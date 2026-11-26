@@ -312,7 +312,8 @@ class ProjectAssignmentRateInline(LockWhenProjectClosedInlineMixin, AllowIsStaff
     max_num = len(ProjectRoles.choices())
     fields = ("role", "rate_per_day")
     # Hidden on /add/ (see KippoProjectBaseAdmin.HIDDEN_ON_ADD_INLINES) — the fixture defaults are
-    # seeded in save_model on create. Shown on /change/ for editing the per-role rates.
+    # seeded in save_model on create. Shown collapsed on /change/ for editing the per-role rates.
+    classes = ("collapse",)
 
 
 class ProjectParticipantInline(LockWhenProjectClosedInlineMixin, AllowIsStaffAdminMixin, nested_admin.NestedTabularInline):

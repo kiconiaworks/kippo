@@ -2355,9 +2355,10 @@ class ProjectAssignmentRateInlineConfigTestCase(TestCase):
         # one rate per role — no entries can be added beyond the number of defined roles
         self.assertEqual(ProjectAssignmentRateInline.max_num, len(ProjectRoles.choices()))
 
-    def test_inline_expanded(self):
-        # the assignment-rates section is shown expanded (not collapsed) so prefilled defaults are visible
-        self.assertNotIn("collapse", getattr(ProjectAssignmentRateInline, "classes", ()) or ())
+    def test_inline_collapsed(self):
+        # change-form only (hidden on /add/), so it collapses like the other change-form inlines
+        self.assertIn("collapse", ProjectAssignmentRateInline.classes)
+        self.assertIn(ProjectAssignmentRateInline, KippoProjectAdmin.HIDDEN_ON_ADD_INLINES)
 
 
 class KippoProjectAddFormLayoutTestCase(KippoProjectAdminFixtureTestCaseBase):
